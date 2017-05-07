@@ -14,4 +14,17 @@ router.get('/logout', (req, res) => {
 router.get('/register', (req, res)=>res.render('register'))
 router.post('/register', authConfig.localRegister);
 
+router.get('/facebook', authConfig.facebookLogin)
+router.get('/facebook/callback', authConfig.facebookCallback)
+
+router.get('/profile', ensureAuthenticated, (req, res) => {
+  res.render("profile", {user: req.user});
+});
+
+function ensureAuthenticated(req, res, next) {
+  if(req.isAuthenticated()) {
+    return next()
+  } 
+  res.redirect('/login')
+}
 module.exports = router;
