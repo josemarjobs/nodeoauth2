@@ -4,28 +4,23 @@ var FacebookStrategy = require('passport-facebook').Strategy;
 
 var User = require('../models/user');
 
-var facebookConfig = {
-  clientID: process.env.FB_APP_ID,
-  clientSecret: process.env.FB_APP_SECRET,
-  callbackURL: "http://localhost:3000/facebook/callback",
-  profileFields: ['id', 'displayName', 'photos', 'email']
-};
-
 var localRegisterInit = function(req, email, password, cb) {
-  User.findOne({'local.email': email}).then(user => {
-    if (user) {
+  User.findOne({'local.email': email}, function(err, existingUser) {
+    if(err) {return cb(err);}
+    if (existingUser) {
       // TODO: supply a message
       return cb(null, false)
     }
 
-    var newUser = new User();
-    newUser.local.email = email;
-    newUser.local.password = newUser.hashPassword(password);
+    var user = (req.user) ? req.user : new User();
+    user.local.email = email;
+    user.local.password = user.hashPassword(password);
 
-    return newUser.save()
-  }).then((user) => {
-    cb(null, user);
-  }).catch(cb)
+    return user.save(function(err) {
+      if(err){throw err;}
+      return cb(null, user)
+    })
+  });
 }
 
 var localLoginInit = function(req, email, password, cb) {
@@ -41,25 +36,32 @@ var localOptions = {
   usernameField: 'emailAddress',
   passReqToCallback: true,
 };
+
 passport.use('local-register', new LocalStrategy(localOptions, localRegisterInit))
 passport.use('local-login', new LocalStrategy(localOptions, localLoginInit))
 
-var facebookInit = function(token, refreshToken, profile, cb) {
-  User.findOne({"facebook.id": profile.id}).then(user => {
-    if (user) {
-      return cb(null, user);
-    }  
-    console.log("PROFILE: ", profile);
+var facebookConfig = {
+  clientID: process.env.FB_APP_ID,
+  clientSecret: process.env.FB_APP_SECRET,
+  callbackURL: "http://localhost:3000/facebook/callback",
+  profileFields: ['id', 'displayName', 'photos', 'email'],
+  passReqToCallback: true
+};
 
-    var newUser = new User();
-    newUser.facebook.id = profile.id;
-    newUser.facebook.token = token;
-    newUser.facebook.email = profile.emails[0].value;
-    newUser.save(function(err) {
+var facebookInit = function(req, token, refreshToken, profile, cb) {
+  User.findOne({"facebook.id": profile.id}, function(err, existingUser) {
+    if(err) {return cb(err)}
+    if (existingUser) {return cb(null, existingUser);}
+    
+    var user = (req.user) ? req.user : new User();
+    user.facebook.id = profile.id;
+    user.facebook.token = token;
+    user.facebook.email = profile.emails[0].value;
+    user.save(function(err) {
       if (err) {throw err;}
-      return cb(null, newUser);
+      return cb(null, user);
     });
-  }).catch(cb)
+  });
 }
 
 passport.use(new FacebookStrategy(facebookConfig, facebookInit));
@@ -81,15 +83,24 @@ module.exports = {
     successRedirect: '/profile',
     failureRedirect: '/register'
   }),
+  localConnect: passport.authorize("local-register", {
+    successRedirect: '/profile',
+    failureRedirect: '/connect/local'
+  }),
   localLogin: passport.authenticate("local-login", {
     successRedirect: '/profile',
     failureRedirect: '/login'
   }),
-  facebookLogin: passport.authenticate("facebook", {
-    scope: "email"
-  }),
+  
+  facebookLogin: passport.authenticate("facebook", {scope: "email"}),
   facebookCallback: passport.authenticate("facebook", {
     successRedirect: '/profile',
     failureRedirect: '/'
+  }),
+
+  facebookConnect: passport.authorize("facebook", {scope: "email"}),
+  facebookConnectCallback: passport.authorize("facebook", {
+    successRedirect: '/profile',
+    failureRedirect: '/profile'
   })
 }
