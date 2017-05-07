@@ -36,6 +36,7 @@ app.use('/', routes)
 app.use((req, res, next) => {
   var err = new Error("Not Found");
   err.status = 404;
+  // err.stack = 
   next(err)
 })
 
