@@ -27,6 +27,9 @@ router.get('/disconnect/facebook', authConfig.facebook.disconnect, (req, res) =>
   res.redirect('/profile');
 })
 
+router.get('/demo', authConfig.demo.login)
+router.get('/demo/callback', authConfig.demo.callback)
+
 router.get('/profile', ensureAuthenticated, (req, res) => {
   res.render("profile", {user: req.user});
 });

@@ -1,6 +1,7 @@
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 var FacebookStrategy = require('passport-facebook').Strategy;
+var OAuth2Strategy = require('passport-oauth2').Strategy;
 
 var User = require('../models/user');
 
@@ -63,10 +64,23 @@ var facebookInit = function(req, token, refreshToken, profile, cb) {
     });
   });
 }
-
 passport.use(new FacebookStrategy(facebookConfig, facebookInit));
-// passport.use('local-login', new LocalStrategy(localOptions, localLoginInit))
 
+var demoAppConfig = {
+  authorizationURL: 'http://brentertainment.com/oauth2/lockdin/authorize',
+  tokenURL: 'http://brentertainment.com/oauth2/lockdin/token',
+  clientID: 'demoapp',
+  clientSecret: 'demopass',
+  callbackURL: "http://localhost:3000/demo/callback"
+}
+
+var demoAppInit = function(token, refreshToken, profile, cb) {
+  console.log("TOKEN: ", token)
+  console.log("REFRESH_TOKEN: ", refreshToken)
+  console.log("PROFILE: ", profile)
+  return cb(null, false);
+};
+passport.use(new OAuth2Strategy(demoAppConfig, demoAppInit));
 
 passport.serializeUser((user, cb) => {
   cb(null, user.id);
@@ -124,5 +138,12 @@ module.exports = {
         next();
       })
     }
+  },
+  demo: {
+    login: passport.authenticate("oauth2", {state: "1jvmmqkbuhvgrhhr6qsddtqs31"}),
+    callback: passport.authenticate("oauth2", {
+      successRedirect: '/profile',
+      failureRedirect: '/'
+    })
   }
 }
